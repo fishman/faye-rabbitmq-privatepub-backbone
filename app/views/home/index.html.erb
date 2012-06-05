@@ -1,0 +1,62 @@
+<%= subscribe_to "/messages/new" %>
+
+<script type="text/template" id="participant-template">
+  <a href="#" data-id={{=id}}>{{= ufn }}</a><br/>
+</script>
+<script type="text/javascript">
+_.templateSettings = {
+  interpolate: /\{\{\=(.+?)\}\}/g,
+  evaluate: /\{\{(.+?)\}\}/g
+};
+var Participant = Backbone.Model.extend({
+  urlRoot: "/participants"
+  
+
+});
+
+var Participants = Backbone.Collection.extend({
+  model: Participant,
+  url: "/participants"
+});
+
+var ParticipantListView = Backbone.View.extend({
+    tagName: "ul",
+    events: {
+        "click a": "clicked"
+    },
+
+    initialize: function(){
+        this.collection.on('reset', this.render, this);
+        this.collection.on('remove', this.render, this);
+        this.collection.on('add', this.render, this);
+    },
+
+    clicked: function(e){
+        e.preventDefault();
+        var id = $(e.currentTarget).data("id");
+        var item = this.collection.get(id);
+        item.destroy();
+    },
+
+    render: function(){
+        var el = $(this.el);
+        el.empty();
+        this.collection.each(function(model){
+            var html = _.template( $("#participant-template").html(), model.toJSON() );
+            el.append(html);
+        });
+    }
+});
+
+$(function(){
+participants = new Participants;
+participants.fetch();
+var view = new ParticipantListView({collection: participants});
+view.render();
+$("#showIt").html(view.el);
+});
+</script>
+
+<div id="showIt">
+
+</div>

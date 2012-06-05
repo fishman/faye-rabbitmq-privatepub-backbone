@@ -1,0 +1,102 @@
+== Starting Faye
+
+Faye needs thin to be started in production mode
+       rackup faye.ru -s thin -E production
+
+You can start it with foreman
+      bundle exec foreman start
+
+You also need to start the message queue processing daemon
+      bundle exec rake message_queue:process
+
+
+== Backbone Faye connection
+
+To update the collection after destroying a participant
+        var model = collection.get(id);
+        model.destroy();
+
+
+
+
+== RabbitMQ quickie
+
+There are a couple of different messaging possibilities with rabbitMQ. Fanout for 1 to n messaging.
+
+We are going to use the default exchange with a specific routing key for different purposes
+
+See ruby-ampq docs for more details
+http://rubydoc.info/github/ruby-amqp/amqp/master/file/docs/Exchanges.textile
+
+== Send a message from commandline
+
+We can send a message from commandline
+        bundle exec ruby send_message.rb
+
+We are using amqp bunny for synchronous amqp messaging. We only need this to send messages from the Phone conferencing web app. It's probably better to use a python or C program. Than doing an HTTP request.
+
+== FAQ
+1. How do I install private_pub?
+        rails g private_pub:install
+
+2. How does it work?
+
+3. How do I create a task in Rails
+        bundle exec rails g task message_queue
+
+4. What about reverse proxying?
+        global
+            log 127.0.0.1       local0
+            log 127.0.0.1       local0 notice
+
+            maxconn     4096
+            nbproc      1
+            pidfile     /var/run/haproxy.pid
+
+            user        haproxy
+            group       haproxy
+
+        defaults
+            mode http
+
+        frontend all xx.xx.xx.xx:80
+            timeout client    86400000
+            default_backend   nginx_backend
+
+            acl is_websocket hdr(Upgrade) -i WebSocket
+            acl is_websocket hdr_beg(Host) -i ws
+            acl is_faye url_sub faye
+
+            use_backend faye_backend if is_faye
+            use_backend ws_backend if is_websocket
+
+        backend ws_backend
+            option forwardfor
+            timeout queue 5000
+            timeout connect 86400000
+            timeout server 86400000
+            server server1 xx.xx.xx.xx:9696 maxconn 2000 check
+
+        backend faye_backend
+            option forwardfor
+            timeout connect 4000
+            timeout server 30000
+            server server1 xx.xx.xx.xx:9696 maxconn 1024 check
+
+        backend nginx_backend
+            option forwardfor
+            timeout connect 4000
+            timeout server 86400000
+            server server1 xx.xx.xx.xx:8081 maxconn 1024 check
+
+5. How do I serve Faye with SSL
+        # config/private_pub_thin.yml
+        ---
+        port: 4443
+        ssl: true
+        ssl_key_file: /path/to/server.pem
+        ssl_cert_file: /path/to/certificate_chain.pem
+        environment: production
+        rackup: private_pub.ru
+
+See https://github.com/ryanb/private_pub for further details.
